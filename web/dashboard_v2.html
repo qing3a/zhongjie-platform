@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>中介 API 平台 - Agent 协作网络 v2</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+      background: #0f1419; color: #e0e6ed; margin: 0; padding: 20px;
+    }
+    h1 { color: #4fc3f7; margin: 0 0 8px 0; }
+    .subtitle { color: #888; margin-bottom: 24px; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+      background: #1a1f2e; border: 1px solid #2a3142;
+      border-radius: 8px; padding: 16px;
+    }
+    .card h2 { font-size: 16px; color: #4fc3f7; margin: 0 0 12px 0; }
+    .full { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2a3142; }
+    th { color: #888; font-weight: normal; }
+    tr:hover { background: #232938; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: bold;
+    }
+    .pill-pending { background: #5a4a00; color: #ffd54f; }
+    .pill-accepted { background: #1b5e20; color: #a5d6a7; }
+    .pill-rejected { background: #b71c1c; color: #ef9a9a; }
+    .pill-placed { background: #004d40; color: #80cbc4; }
+    .pill-completed { background: #1a237e; color: #9fa8da; }
+    .pill-active { background: #1b5e20; color: #a5d6a7; }
+    .pill-suspended { background: #5a4a00; color: #ffd54f; }
+    .pill-revoked { background: #b71c1c; color: #ef9a9a; }
+    .trust-bar {
+      width: 100px; height: 8px; background: #2a3142; border-radius: 4px;
+      display: inline-block; overflow: hidden; vertical-align: middle;
+    }
+    .trust-fill { height: 100%; background: linear-gradient(90deg, #ef5350, #ffd54f, #66bb6a); }
+    button {
+      background: #1976d2; color: white; border: none; padding: 6px 12px;
+      border-radius: 4px; cursor: pointer; font-size: 13px;
+    }
+    button:hover { background: #1565c0; }
+    button.danger { background: #c62828; }
+    .stat {
+      display: inline-block; padding: 4px 10px; margin: 4px;
+      background: #232938; border-radius: 4px; font-size: 12px;
+    }
+    .stat b { color: #4fc3f7; }
+    .error { color: #ef9a9a; }
+    code { background: #232938; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+    .empty { color: #666; font-style: italic; padding: 12px 0; }
+    .section-actions { margin-top: 8px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .row input, .row select {
+      background: #0f1419; color: #e0e6ed; border: 1px solid #2a3142;
+      padding: 4px 8px; border-radius: 4px; font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 中介 API 平台 - Agent 协作网络 v2</h1>
+  <div class="subtitle">
+    基于 P0-P5 重构 | 25 里程碑 | 255 测试通过 | API: <code id="baseUrl">http://localhost:8000</code>
+  </div>
+
+  <div class="grid">
+
+    <!-- 平台统计 -->
+    <div class="card full">
+      <h2>📊 平台总览</h2>
+      <div id="overview">加载中…</div>
+    </div>
+
+    <!-- Agent 列表 -->
+    <div class="card">
+      <h2>🤖 Agents</h2>
+      <div class="row">
+        <input id="newAgentName" placeholder="新 Agent 名称">
+        <select id="newAgentRole">
+          <option value="headhunter">Headhunter</option>
+          <option value="employer">Employer</option>
+          <option value="platform">Platform</option>
+        </select>
+        <button onclick="registerAgent()">+ 注册</button>
+      </div>
+      <div id="agents">加载中…</div>
+    </div>
+
+    <!-- 委托面板 -->
+    <div class="card">
+      <h2>🤝 委托 (Delegations)</h2>
+      <div id="delegations">加载中…</div>
+    </div>
+
+    <!-- 信任分历史 -->
+    <div class="card">
+      <h2>⭐ 信任分调整历史</h2>
+      <div id="trustHistory">加载中…</div>
+    </div>
+
+    <!-- 治理审计 -->
+    <div class="card full">
+      <h2>🔒 治理决策审计 (链式 hash 防篡改)</h2>
+      <div class="row">
+        <button onclick="verifyAudit()">🔍 校验完整性</button>
+        <span id="auditStatus" class="stat"></span>
+      </div>
+      <div id="audit">加载中…</div>
+    </div>
+
+    <!-- A2A 任务 -->
+    <div class="card full">
+      <h2>📡 A2A Tasks (异步任务)</h2>
+      <div id="tasks">加载中…</div>
+    </div>
+
+  </div>
+
+  <script>
+    const BASE = document.getElementById('baseUrl').textContent;
+
+    async function api(method, path, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const r = await fetch(BASE + path, opts);
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data };
+    }
+
+    function pill(text, cls) {
+      return `<span class="pill pill-${cls}">${text}</span>`;
+    }
+    function trustBar(score) {
+      const pct = Math.round(score * 100);
+      return `<span class="trust-bar"><span class="trust-fill" style="width:${pct}%"></span></span> ${pct}%`;
+    }
+
+    function renderAgents(agents) {
+      if (!agents.length) return '<div class="empty">尚无 Agent</div>';
+      return `<table>
+        <tr><th>名称</th><th>角色</th><th>能力</th><th>信任分</th><th>状态</th><th>操作</th></tr>
+        ${agents.map(a => `<tr>
+          <td>${a.name}</td>
+          <td>${a.role}</td>
+          <td>${(a.capabilities || []).map(c => `<code>${c}</code>`).join(' ')}</td>
+          <td>${trustBar(a.trust_score)}</td>
+          <td>${pill(a.status, a.status)}</td>
+          <td>
+            <button onclick="adjustTrust('${a.agent_id}', 0.1)">+0.1</button>
+            <button onclick="adjustTrust('${a.agent_id}', -0.1)" class="danger">-0.1</button>
+          </td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    function renderDelegations(delegs) {
+      if (!delegs.length) return '<div class="empty">尚无委托</div>';
+      return `<table>
+        <tr><th>ID</th><th>From → To</th><th>候选人</th><th>状态</th><th>分润</th></tr>
+        ${delegs.slice(0, 10).map(d => `<tr>
+          <td><code>${d.id}</code></td>
+          <td>${d.from_agent_id} → ${d.to_agent_id}</td>
+          <td>${d.candidate_ref}</td>
+          <td>${pill(d.status, d.status)}</td>
+          <td>${(d.fee_split || []).map(s => `${s.agent_id}: ${(s.pct * 100).toFixed(0)}%`).join(', ')}</td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    function renderTrustHistory(items) {
+      if (!items.length) return '<div class="empty">尚无调整</div>';
+      return `<table>
+        <tr><th>Agent</th><th>事件</th><th>Δ</th><th>新分</th><th>时间</th></tr>
+        ${items.slice(0, 10).map(h => `<tr>
+          <td>${h.agent_id}</td>
+          <td>${h.event_type}</td>
+          <td>${h.delta > 0 ? '+' : ''}${h.delta.toFixed(2)}</td>
+          <td>${h.new_score !== null ? h.new_score.toFixed(2) : '-'}</td>
+          <td>${h.timestamp}</td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    function renderAudit(entries) {
+      if (!entries.length) return '<div class="empty">尚无审计记录</div>';
+      return `<table>
+        <tr><th>ID</th><th>Request</th><th>Owner</th><th>Decision</th><th>Trust</th><th>Hash</th></tr>
+        ${entries.slice(0, 10).map(e => `<tr>
+          <td><code>${e.id}</code></td>
+          <td><code>${e.request_id}</code></td>
+          <td>${e.owner_agent_id || '-'}</td>
+          <td>${pill(e.decision.replace(/_/g, ' '), 'accepted')}</td>
+          <td>${e.trust_score !== null ? e.trust_score.toFixed(2) : '-'}</td>
+          <td><code title="${e.hash}">${e.hash.substring(0, 8)}…</code></td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    function renderTasks(tasks) {
+      if (!tasks.length) return '<div class="empty">尚无 Task</div>';
+      return `<table>
+        <tr><th>ID</th><th>Kind</th><th>State</th><th>Owner</th><th>Context</th></tr>
+        ${tasks.slice(0, 10).map(t => `<tr>
+          <td><code>${t.task_id}</code></td>
+          <td>${t.kind}</td>
+          <td>${pill(t.state, t.state === 'completed' ? 'completed' : (t.state === 'failed' || t.state === 'canceled') ? 'rejected' : 'pending')}</td>
+          <td>${t.owner_agent_id || '-'}</td>
+          <td><code>${t.context_id || '-'}</code></td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    async function loadOverview() {
+      const [agentsR, delegsR, auditStatsR, tasksR] = await Promise.all([
+        api('GET', '/api/agents'),
+        api('GET', '/api/delegations'),
+        api('GET', '/api/audit/stats'),
+        api('GET', '/api/tasks'),
+      ]);
+      const a = agentsR.data, d = delegsR.data, ts = auditStatsR.data, tk = tasksR.data;
+      document.getElementById('overview').innerHTML = `
+        <span class="stat"><b>${a.total}</b> Agents</span>
+        ${Object.entries(a.by_role).map(([r, n]) => `<span class="stat">${r}: <b>${n}</b></span>`).join('')}
+        <span class="stat"><b>${d.length}</b> 委托</span>
+        <span class="stat">${d.filter(x => x.status === 'pending').length} 待响应</span>
+        <span class="stat">${d.filter(x => x.status === 'placed').length} 已入职</span>
+        <span class="stat"><b>${ts.total}</b> 审计记录</span>
+        <span class="stat">${ts.by_decision ? Object.keys(ts.by_decision).length : 0} 种决策</span>
+        <span class="stat"><b>${tk.length}</b> Tasks</span>
+        <span class="stat">${tk.filter(t => t.state === 'submitted' || t.state === 'working').length} 进行中</span>
+      `;
+    }
+
+    async function loadAgents() {
+      const r = await api('GET', '/api/agents');
+      if (r.ok) {
+        document.getElementById('agents').innerHTML = renderAgents(r.data.agents);
+      } else {
+        document.getElementById('agents').innerHTML = `<div class="error">加载失败</div>`;
+      }
+    }
+
+    async function loadDelegations() {
+      const r = await api('GET', '/api/delegations');
+      if (r.ok) document.getElementById('delegations').innerHTML = renderDelegations(r.data);
+    }
+
+    async function loadTrustHistory() {
+      // 从 audit 历史中聚合 (简化)
+      const r = await api('GET', '/api/audit?limit=50');
+      if (r.ok) document.getElementById('trustHistory').innerHTML = renderTrustHistory(r.data);
+    }
+
+    async function loadAudit() {
+      const r = await api('GET', '/api/audit?limit=20');
+      if (r.ok) document.getElementById('audit').innerHTML = renderAudit(r.data);
+    }
+
+    async function loadTasks() {
+      const r = await api('GET', '/api/tasks');
+      if (r.ok) document.getElementById('tasks').innerHTML = renderTasks(r.data);
+    }
+
+    async function registerAgent() {
+      const name = document.getElementById('newAgentName').value.trim();
+      if (!name) return alert('请输入 Agent 名称');
+      const role = document.getElementById('newAgentRole').value;
+      const r = await api('POST', '/api/agents', { name, role });
+      if (r.ok) {
+        document.getElementById('newAgentName').value = '';
+        await Promise.all([loadAgents(), loadOverview()]);
+      } else {
+        alert('注册失败: ' + (r.data.detail || r.status));
+      }
+    }
+
+    async function adjustTrust(agentId, delta) {
+      const r = await api('POST', `/api/agents/${agentId}/trust`, { delta, reason: 'manual' });
+      if (r.ok) {
+        await Promise.all([loadAgents(), loadTrustHistory(), loadOverview()]);
+      }
+    }
+
+    async function verifyAudit() {
+      const r = await api('GET', '/api/audit/verify');
+      const el = document.getElementById('auditStatus');
+      if (r.ok) {
+        if (r.data.is_valid) {
+          el.innerHTML = `✅ 完整 (${r.data.entry_count} 条)`;
+        } else {
+          el.innerHTML = `❌ 篡改: ${r.data.issues.length} 处问题`;
+        }
+      }
+    }
+
+    // 启动加载
+    async function refreshAll() {
+      await Promise.all([
+        loadOverview(), loadAgents(), loadDelegations(),
+        loadTrustHistory(), loadAudit(), loadTasks(),
+      ]);
+    }
+    refreshAll();
+    setInterval(refreshAll, 5000);  // 5s 刷新
+  </script>
+</body>
+</html>

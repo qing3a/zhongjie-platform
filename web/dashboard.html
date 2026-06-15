@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中介平台 - 审批台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .nav { background: #1890ff; color: white; padding: 10px 20px; border-radius: 6px; margin-bottom: 16px; }
+        .nav a { color: white; text-decoration: none; margin-right: 16px; font-size: 13px; }
+        .nav a:hover { text-decoration: underline; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header h2 { font-size: 18px; color: #333; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-success { background: #52c41a; color: white; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #f0f0f0; }
+        th { background: #fafafa; color: #666; font-weight: 500; font-size: 14px; }
+        td { font-size: 14px; color: #333; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-pending { background: #fff7e6; color: #fa8c16; }
+        .badge-approved { background: #f6ffed; color: #52c41a; }
+        .badge-rejected { background: #fff1f0; color: #ff4d4f; }
+        .badge-routing { background: #e6f7ff; color: #1890ff; }
+        .empty { text-align: center; color: #999; padding: 40px; }
+        .refresh { color: #1890ff; cursor: pointer; margin-left: 10px; }
+        .suggestion { color: #52c41a; font-size: 12px; margin-top: 4px; }
+        .comment-input { width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 4px; margin: 10px 0; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 8px 16px; border-radius: 4px; cursor: pointer; background: #f0f0f0; color: #666; }
+        .tab.active { background: #1890ff; color: white; }
+        .stat { display: flex; gap: 30px; margin-bottom: 20px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #1890ff; }
+        .stat-label { font-size: 14px; color: #666; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: #333; color: white; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+        .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-bar input, .filter-bar select { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; }
+        .pagination { display: flex; gap: 5px; align-items: center; justify-content: center; margin-top: 15px; }
+        .pagination button { padding: 4px 10px; border: 1px solid #d9d9d9; background: white; border-radius: 4px; cursor: pointer; }
+        .pagination button.active { background: #1890ff; color: white; border-color: #1890ff; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chart-container { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+        .chart-box { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-width: 200px; }
+        .chart-bar { height: 8px; background: #f0f0f0; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .chart-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .quota-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+        .quota-item:last-child { border-bottom: none; }
+        .quota-bar { flex: 1; margin: 0 20px; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+        .quota-bar-fill { height: 100%; background: #1890ff; border-radius: 3px; }
+        .webhook-item { padding: 12px; border: 1px solid #f0f0f0; border-radius: 4px; margin-bottom: 10px; }
+        .webhook-item pre { margin: 8px 0; font-size: 12px; background: #fafafa; padding: 8px; border-radius: 4px; overflow-x: auto; }
+        .refresh-all { background: #52c41a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <strong>中介平台</strong>
+            <a href="/web/dashboard.html">审批台</a>
+            <a href="/web/admin.html">管理面板</a>
+            <a href="/docs" target="_blank">API 文档</a>
+        </div>
+        <h1>中介平台 - 审批台</h1>
+
+        <div class="stat">
+            <div class="stat-item">
+                <div class="stat-value" id="stat-pending">0</div>
+                <div class="stat-label">待审批</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-approved">0</div>
+                <div class="stat-label">已通过</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-rejected">0</div>
+                <div class="stat-label">已拒绝</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">总请求</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="tabs" style="margin-bottom:0">
+                <div class="tab active" onclick="setTab('pending')">待审批</div>
+                <div class="tab" onclick="setTab('approved')">已通过</div>
+                <div class="tab" onclick="setTab('rejected')">已拒绝</div>
+                <div class="tab" onclick="setTab('all')">全部</div>
+                <div class="tab" onclick="setTab('rules')">规则管理</div>
+                <div class="tab" onclick="setTab('stats')">数据统计</div>
+                <div class="tab" onclick="setTab('quota')">配额管理</div>
+                <div class="tab" onclick="setTab('webhooks')">Webhook</div>
+                <div class="tab" onclick="setTab('users')">用户管理</div>
+                <div class="tab" onclick="setTab('matches')">交易协作</div>
+            </div>
+            <button class="btn refresh-all" onclick="loadData()">刷新全部</button>
+        </div>
+
+        <div class="card">
+            <div class="header">
+                <h2>请求列表</h2>
+                <span class="refresh" onclick="loadData()">刷新</span>
+            </div>
+            <div class="filter-bar" id="filter-bar" style="display:none">
+                <span>日期:</span>
+                <input type="date" id="filter-date-from">
+                <span>至</span>
+                <input type="date" id="filter-date-to">
+                <button class="btn btn-primary" onclick="applyFilter()">应用</button>
+            </div>
+            <table id="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>来源</th>
+                        <th>意图</th>
+                        <th>JD标题</th>
+                        <th>候选人</th>
+                        <th>匹配度</th>
+                        <th>建议</th>
+                        <th>状态</th>
+                        <th>时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+            <div class="empty" id="empty" style="display:none">暂无数据</div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <div class="card" id="rules-card" style="display:none">
+            <div class="header">
+                <h2>规则列表</h2>
+                <button class="btn btn-primary" onclick="showRuleModal()">添加规则</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>优先级</th>
+                        <th>动作</th>
+                        <th>条件</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="rules-tbody"></tbody>
+            </table>
+            <div class="empty" id="rules-empty" style="display:none">暂无规则</div>
+        </div>
+
+    <!-- 数据统计Tab -->
+    <div class="card" id="stats-card" style="display:none">
+        <div class="header">
+            <h2>数据统计</h2>
+        </div>
+        <div class="stat">
+            <div class="stat-item">
+                <div class="stat-value" id="stats-total">0</div>
+                <div class="stat-label">总请求数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stats-approval-rate">0%</div>
+                <div class="stat-label">通过率</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stats-pending">0</div>
+                <div class="stat-label">待处理</div>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-box">
+                <h3 style="font-size:14px;color:#666">审批分布</h3>
+                <div class="chart-bar">
+                    <div class="chart-bar-fill" id="chart-approved" style="width:0%;background:#52c41a"></div>
+                    <div class="chart-bar-fill" id="chart-rejected" style="width:0%;background:#ff4d4f"></div>
+                    <div class="chart-bar-fill" id="chart-pending-bar" style="width:0%;background:#fa8c16"></div>
+                </div>
+                <div style="display:flex;gap:15px;margin-top:10px;font-size:12px">
+                    <span><span style="color:#52c41a">●</span> 通过 <span id="chart-approved-count">0</span></span>
+                    <span><span style="color:#ff4d4f">●</span> 拒绝 <span id="chart-rejected-count">0</span></span>
+                    <span><span style="color:#fa8c16">●</span> 待处理 <span id="chart-pending-count">0</span></span>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3 style="font-size:14px;color:#666">本周趋势</h3>
+                <div id="trend-chart" style="display:flex;align-items:flex-end;gap:8px;height:60px;margin-top:10px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配额管理Tab -->
+    <div class="card" id="quota-card" style="display:none">
+        <div class="header">
+            <h2>配额管理</h2>
+            <button class="btn btn-primary" onclick="showQuotaModal()">调整配额</button>
+        </div>
+        <div id="quota-list"></div>
+    </div>
+
+    <!-- Webhook管理Tab -->
+    <div class="card" id="webhooks-card" style="display:none">
+        <div class="header">
+            <h2>Webhook 列表</h2>
+            <button class="btn btn-primary" onclick="showWebhookModal()">添加 Webhook</button>
+        </div>
+        <div id="webhooks-list"></div>
+        <div class="empty" id="webhooks-empty" style="display:none">暂无 Webhook</div>
+    </div>
+
+    <div class="card" id="matches-card" style="display:none">
+        <div class="header">
+            <h2>匹配列表</h2>
+            <span class="refresh" onclick="loadMatches()">刷新</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>匹配ID</th>
+                    <th>JD标题 + 公司</th>
+                    <th>候选人</th>
+                    <th>匹配度</th>
+                    <th>状态</th>
+                    <th>提交时间</th>
+                    <th>来源</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="matches-tbody"></tbody>
+        </table>
+        <div class="empty" id="matches-empty" style="display:none">暂无匹配数据</div>
+    </div>
+
+    <!-- 匹配详情弹窗 -->
+    <div id="match-detail-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div style="background:white;max-width:800px;margin:50px auto;padding:20px;border-radius:8px;max-height:80vh;overflow-y:auto;">
+            <h3>匹配详情</h3>
+            <div id="match-detail-content" style="margin:15px 0;"></div>
+            <div style="text-align:right;">
+                <button class="btn" onclick="closeMatchDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户管理Tab -->
+    <div class="card" id="users-card" style="display:none">
+        <div class="header">
+            <h2>用户列表</h2>
+            <button class="btn btn-primary" onclick="showUserModal()">创建用户</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>权限</th>
+                    <th>创建时间</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+        </table>
+        <div class="empty" id="users-empty" style="display:none">暂无用户</div>
+    </div>
+
+    <!-- 用户详情弹窗 -->
+    <div id="user-detail-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div style="background:white;max-width:700px;margin:50px auto;padding:20px;border-radius:8px;max-height:80vh;overflow-y:auto;">
+            <h3>用户详情</h3>
+            <div id="user-detail-content" style="margin:15px 0;"></div>
+            <div style="text-align:right;">
+                <button class="btn" onclick="closeUserDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑用户弹窗 -->
+    <div id="user-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1001;">
+        <div style="background:white;max-width:500px;margin:50px auto;padding:20px;border-radius:8px;">
+            <h3 id="user-modal-title">创建用户</h3>
+            <input type="hidden" id="user-key-id">
+            <div style="margin:10px 0;">
+                <label>用户名:</label><br>
+                <input type="text" id="user-name" style="width:100%;padding:8px;">
+            </div>
+            <div style="margin:10px 0;">
+                <label>角色:</label><br>
+                <select id="user-role" style="width:100%;padding:8px;">
+                    <option value="admin">管理员</option>
+                    <option value="approver">审批员</option>
+                    <option value="requester" selected>请求者</option>
+                    <option value="viewer">查看者</option>
+                </select>
+            </div>
+            <div style="margin:10px 0;">
+                <label>权限 (多选):</label><br>
+                <div id="permissions-list" style="max-height:150px;overflow-y:auto;border:1px solid #d9d9d9;border-radius:4px;padding:8px;">
+                    <label><input type="checkbox" value="headhunter_submit_jd"> 提交 JD</label><br>
+                    <label><input type="checkbox" value="headhunter_submit_candidate"> 提交候选人</label><br>
+                    <label><input type="checkbox" value="headhunter_submit_match"> 提交匹配</label><br>
+                    <label><input type="checkbox" value="company_view_matches"> 查看匹配列表</label><br>
+                    <label><input type="checkbox" value="company_reply_interview"> 回复面试</label><br>
+                    <label><input type="checkbox" value="platform_approve"> 审批通过</label><br>
+                    <label><input type="checkbox" value="platform_reject"> 审批拒绝</label><br>
+                    <label><input type="checkbox" value="platform_manage_rules"> 管理规则</label><br>
+                </div>
+            </div>
+            <div style="margin:10px 0;text-align:right;">
+                <button class="btn" onclick="closeUserModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveUser()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key显示弹窗 -->
+    <div id="apikey-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1002;">
+        <div style="background:white;max-width:500px;margin:50px auto;padding:20px;border-radius:8px;">
+            <h3>API Key 已创建</h3>
+            <div style="margin:15px 0;">
+                <div style="background:#fff7e6;border:1px solid #faad14;padding:12px;border-radius:4px;margin:10px 0;">
+                    <div style="color:#fa8c16;font-weight:bold;margin-bottom:8px;">请妥善保存以下信息，此 Key 只显示一次！</div>
+                    <div style="margin:8px 0;"><strong>Key ID:</strong> <span id="apikey-key-id"></span></div>
+                    <div style="margin:8px 0;"><strong>Secret:</strong> <span id="apikey-secret" style="font-family:monospace"></span></div>
+                    <div style="margin:8px 0;"><strong>Token:</strong> <span id="apikey-token" style="font-family:monospace;font-size:12px;word-break:break-all"></span></div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <button class="btn btn-primary" onclick="closeApikeyModal()">我已保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配额编辑弹窗 -->
+    <div id="quota-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div style="background:white;max-width:500px;margin:50px auto;padding:20px;border-radius:8px;">
+            <h3>调整配额</h3>
+            <div style="margin:15px 0;">
+                <label>接入方:</label><br>
+                <select id="quota-source" style="width:100%;padding:8px;">
+                    <option value="候选人管理系统">候选人管理系统</option>
+                    <option value="招聘平台">招聘平台</option>
+                    <option value="内部HR系统">内部HR系统</option>
+                </select>
+            </div>
+            <div style="margin:15px 0;">
+                <label>日配额:</label><br>
+                <input type="number" id="quota-limit" value="1000" min="1" style="width:100%;padding:8px;">
+            </div>
+            <div style="text-align:right;">
+                <button class="btn" onclick="closeQuotaModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveQuota()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Webhook编辑弹窗 -->
+    <div id="webhook-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div style="background:white;max-width:500px;margin:50px auto;padding:20px;border-radius:8px;">
+            <h3>添加 Webhook</h3>
+            <div style="margin:15px 0;">
+                <label>名称:</label><br>
+                <input type="text" id="webhook-name" placeholder="my-webhook" style="width:100%;padding:8px;">
+            </div>
+            <div style="margin:15px 0;">
+                <label>URL:</label><br>
+                <input type="text" id="webhook-url" placeholder="https://example.com/webhook" style="width:100%;padding:8px;">
+            </div>
+            <div style="margin:15px 0;">
+                <label>事件:</label><br>
+                <select id="webhook-event" style="width:100%;padding:8px;">
+                    <option value="approval.completed">审批完成</option>
+                    <option value="request.pending">新请求</option>
+                    <option value="rule.matched">规则匹配</option>
+                </select>
+            </div>
+            <div style="text-align:right;">
+                <button class="btn" onclick="closeWebhookModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveWebhook()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则编辑弹窗 -->
+    <div id="rule-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div style="background:white;max-width:600px;margin:50px auto;padding:20px;border-radius:8px;">
+            <h3 id="rule-modal-title">添加规则</h3>
+            <input type="hidden" id="rule-id">
+            <div style="margin:10px 0;">
+                <label>规则名称:</label><br>
+                <input type="text" id="rule-name" style="width:100%;padding:8px;">
+            </div>
+            <div style="margin:10px 0;">
+                <label>优先级:</label><br>
+                <input type="number" id="rule-priority" value="0" style="width:100%;padding:8px;">
+            </div>
+            <div style="margin:10px 0;">
+                <label>动作:</label><br>
+                <select id="rule-action" style="width:100%;padding:8px;">
+                    <option value="auto_approve">自动通过</option>
+                    <option value="auto_reject">自动拒绝</option>
+                    <option value="manual_review">人工审批</option>
+                    <option value="route_directly">直接路由</option>
+                </select>
+            </div>
+            <div style="margin:10px 0;">
+                <label>条件 (JSON):</label><br>
+                <textarea id="rule-conditions" rows="3" style="width:100%;padding:8px;">[{"field": "payload.amount", "op": "<", "value": 1000}]</textarea>
+            </div>
+            <div style="margin:10px 0;">
+                <label><input type="checkbox" id="rule-enabled" checked> 启用</label>
+            </div>
+            <div style="margin:10px 0;text-align:right;">
+                <button class="btn" onclick="closeRuleModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentTab = 'pending';
+        let pendingData = [];
+        let historyData = [];
+        let rulesData = [];
+        let quotaData = [];
+        let webhooksData = [];
+        let usersData = [];
+        let matchesData = [];
+
+        // 分页
+        const PAGE_SIZE = 20;
+        let currentPage = 1;
+        let filteredData = [];
+
+        // 日期过滤
+        let dateFrom = null;
+        let dateTo = null;
+
+        async function loadData() {
+            try {
+                const res = await fetch(`${API_BASE}/api/pending`);
+                if (!res.ok) throw new Error('API unavailable');
+                pendingData = await res.json();
+            } catch (e) {
+                showToast('无法连接API服务，请确保 api_server.py 已启动');
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/approvals`);
+                historyData = await res.json();
+            } catch (e) {
+                historyData = [];
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/rules`);
+                rulesData = await res.json();
+            } catch (e) {
+                rulesData = [];
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/quota`);
+                quotaData = await res.json();
+            } catch (e) {
+                quotaData = [];
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/webhooks`);
+                webhooksData = await res.json();
+            } catch (e) {
+                webhooksData = [];
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/users`);
+                usersData = await res.json();
+            } catch (e) {
+                usersData = [];
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/matches`);
+                matchesData = await res.json();
+            } catch (e) {
+                matchesData = [];
+            }
+
+            render();
+        }
+
+        async function loadMatches() {
+            try {
+                const res = await fetch(`${API_BASE}/api/matches`);
+                matchesData = await res.json();
+                if (currentTab === 'matches') render();
+            } catch (e) {
+                showToast('加载匹配数据失败');
+            }
+        }
+
+        function applyFilter() {
+            dateFrom = document.getElementById('filter-date-from').value;
+            dateTo = document.getElementById('filter-date-to').value;
+            currentPage = 1;
+            render();
+        }
+
+        function filterByDate(data) {
+            if (!dateFrom && !dateTo) return data;
+            return data.filter(d => {
+                const ts = d.created_at || d.timestamp;
+                if (!ts) return true;
+                const dt = new Date(ts);
+                const fromOk = !dateFrom || dt >= new Date(dateFrom);
+                const toOk = !dateTo || dt <= new Date(dateTo + 'T23:59:59');
+                return fromOk && toOk;
+            });
+        }
+
+        function getFilteredData(tab) {
+            let data = [];
+            historyData.forEach(a => {
+                const req = findRequestById(a.request_id);
+                if (req) {
+                    data.push({...req, decision: a.decision, approved_at: a.approved_at});
+                }
+            });
+
+            if (tab === 'pending') {
+                data = pendingData.map(p => ({...p.request, suggestion: p.suggestion}));
+            } else if (tab === 'approved') {
+                data = data.filter(d => d.decision === 'approved');
+            } else if (tab === 'rejected') {
+                data = data.filter(d => d.decision === 'rejected');
+            } else if (tab === 'all') {
+                // 合并
+            }
+
+            // 去重
+            const seen = new Set();
+            data = data.filter(d => {
+                if (seen.has(d.id)) return false;
+                seen.add(d.id);
+                return true;
+            });
+
+            return filterByDate(data);
+        }
+
+        function render() {
+            // 隐藏所有卡片
+            const tableCard = document.getElementById('table').closest('.card');
+            tableCard.style.display = currentTab === 'pending' || currentTab === 'approved' || currentTab === 'rejected' || currentTab === 'all' ? 'block' : 'none';
+            document.getElementById('rules-card').style.display = currentTab === 'rules' ? 'block' : 'none';
+            document.getElementById('stats-card').style.display = currentTab === 'stats' ? 'block' : 'none';
+            document.getElementById('quota-card').style.display = currentTab === 'quota' ? 'block' : 'none';
+            document.getElementById('webhooks-card').style.display = currentTab === 'webhooks' ? 'block' : 'none';
+            document.getElementById('users-card').style.display = currentTab === 'users' ? 'block' : 'none';
+            document.getElementById('matches-card').style.display = currentTab === 'matches' ? 'block' : 'none';
+
+            // 过滤栏
+            document.getElementById('filter-bar').style.display = (currentTab === 'all' || currentTab === 'approved' || currentTab === 'rejected') ? 'flex' : 'none';
+
+            if (currentTab === 'rules') {
+                renderRules();
+                return;
+            }
+            if (currentTab === 'stats') {
+                renderStats();
+                return;
+            }
+            if (currentTab === 'quota') {
+                renderQuota();
+                return;
+            }
+            if (currentTab === 'webhooks') {
+                renderWebhooks();
+                return;
+            }
+            if (currentTab === 'users') {
+                renderUsers();
+                return;
+            }
+            if (currentTab === 'matches') {
+                renderMatches();
+                return;
+            }
+                return;
+            }
+
+            const tbody = document.getElementById('tbody');
+            const empty = document.getElementById('empty');
+            const pagination = document.getElementById('pagination');
+
+            filteredData = getFilteredData(currentTab);
+
+            // 更新统计
+            document.getElementById('stat-pending').textContent = pendingData.length;
+            document.getElementById('stat-approved').textContent = historyData.filter(a => a.decision === 'approved').length;
+            document.getElementById('stat-rejected').textContent = historyData.filter(a => a.decision === 'rejected').length;
+            document.getElementById('stat-total').textContent = pendingData.length + historyData.length;
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                pagination.innerHTML = '';
+                return;
+            }
+
+            empty.style.display = 'none';
+
+            // 分页
+            const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+            tbody.innerHTML = pageData.map(d => {
+                const score = d.payload?.match_score;
+                const scoreText = score !== undefined ? `${(score * 100).toFixed(0)}%` : '-';
+                const level = d.payload?.jd?.level || d.payload?.level || '-';
+                const title = d.payload?.jd?.title || d.payload?.title || '-';
+                const candidateName = d.payload?.candidate?.name || d.payload?.candidate_name || '-';
+
+                const action = getActionHTML(d);
+
+                return `<tr>
+                    <td>${d.id.substring(0, 12)}...</td>
+                    <td>${d.source || '-'}</td>
+                    <td>${d.intent || '-'}</td>
+                    <td>${title}</td>
+                    <td>${candidateName}</td>
+                    <td>${scoreText}<br><span style="color:#666;font-size:12px">${level}</span></td>
+                    <td>${d.suggestion || '-'}</td>
+                    <td>${getStatusBadge(d)}</td>
+                    <td>${formatTime(d.created_at)}</td>
+                    <td>${action}</td>
+                </tr>`;
+            }).join('');
+
+            // 分页控件
+            pagination.innerHTML = '';
+            if (totalPages > 1) {
+                pagination.innerHTML = `
+                    <button ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">上一页</button>
+                `;
+                for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                        pagination.innerHTML += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+                    } else if (i === currentPage - 3 || i === currentPage + 3) {
+                        pagination.innerHTML += `<span style="padding:0 5px">...</span>`;
+                    }
+                }
+                pagination.innerHTML += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">下一页</button>`;
+            }
+        }
+
+        function goPage(p) {
+            currentPage = p;
+            render();
+        }
+
+        // ========== 规则管理 ==========
+
+        function renderRules() {
+            const tbody = document.getElementById('rules-tbody');
+            const empty = document.getElementById('rules-empty');
+
+            if (!rulesData || rulesData.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            tbody.innerHTML = rulesData.map(r => {
+                const actionMap = {
+                    'auto_approve': '自动通过',
+                    'auto_reject': '自动拒绝',
+                    'manual_review': '人工审批',
+                    'route_directly': '直接路由'
+                };
+                const enabledHTML = r.enabled
+                    ? `<span class="badge badge-approved">启用</span>`
+                    : `<span class="badge badge-rejected">禁用</span>`;
+
+                return `<tr>
+                    <td>${r.id}</td>
+                    <td>${r.name}</td>
+                    <td>${r.priority}</td>
+                    <td>${actionMap[r.action] || r.action}</td>
+                    <td><pre style="margin:0;font-size:12px">${JSON.stringify(r.conditions)}</pre></td>
+                    <td>${enabledHTML}</td>
+                    <td>
+                        <button class="btn" onclick="editRule('${r.id}')">编辑</button>
+                        <button class="btn btn-danger" onclick="toggleRule('${r.id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
+                        <button class="btn btn-danger" onclick="deleteRule('${r.id}')">删除</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function showRuleModal(rule = null) {
+            const modal = document.getElementById('rule-modal');
+            const title = document.getElementById('rule-modal-title');
+            document.getElementById('rule-id').value = rule ? rule.id : '';
+            document.getElementById('rule-name').value = rule ? rule.name : '';
+            document.getElementById('rule-priority').value = rule ? rule.priority : 0;
+            document.getElementById('rule-action').value = rule ? rule.action : 'manual_review';
+            document.getElementById('rule-conditions').value = rule ? JSON.stringify(rule.conditions) : '[{"field": "payload.amount", "op": "<", "value": 1000}]';
+            document.getElementById('rule-enabled').checked = rule ? rule.enabled : true;
+            title.textContent = rule ? '编辑规则' : '添加规则';
+            modal.style.display = 'block';
+        }
+
+        function closeRuleModal() {
+            document.getElementById('rule-modal').style.display = 'none';
+        }
+
+        async function saveRule() {
+            const id = document.getElementById('rule-id').value;
+            const name = document.getElementById('rule-name').value;
+            const priority = parseInt(document.getElementById('rule-priority').value) || 0;
+            const action = document.getElementById('rule-action').value;
+            const conditionsStr = document.getElementById('rule-conditions').value;
+            const enabled = document.getElementById('rule-enabled').checked;
+
+            let conditions;
+            try {
+                conditions = JSON.parse(conditionsStr);
+            } catch (e) {
+                showToast('条件格式错误，请输入有效的JSON');
+                return;
+            }
+
+            const ruleData = { id: id || `rule_${Date.now().toString(36)}`, name, priority, action, conditions, enabled };
+
+            try {
+                let res;
+                if (id) {
+                    res = await fetch(`${API_BASE}/api/rules/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(ruleData)
+                    });
+                } else {
+                    res = await fetch(`${API_BASE}/api/rules`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(ruleData)
+                    });
+                }
+                if (res.ok) {
+                    showToast(id ? '规则已更新' : '规则已添加');
+                    closeRuleModal();
+                    loadData();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || '操作失败');
+                }
+            } catch (e) {
+                showToast('操作失败: ' + e.message);
+            }
+        }
+
+        function editRule(id) {
+            const rule = rulesData.find(r => r.id === id);
+            if (rule) showRuleModal(rule);
+        }
+
+        async function toggleRule(id, enabled) {
+            try {
+                const res = await fetch(`${API_BASE}/api/rules/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled})
+                });
+                if (res.ok) {
+                    showToast(enabled ? '规则已启用' : '规则已禁用');
+                    loadData();
+                }
+            } catch (e) {
+                showToast('操作失败');
+            }
+        }
+
+        async function deleteRule(id) {
+            if (!confirm('确定要删除这条规则吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/rules/${id}`, {method: 'DELETE'});
+                if (res.ok) {
+                    showToast('规则已删除');
+                    loadData();
+                }
+            } catch (e) {
+                showToast('删除失败');
+            }
+        }
+
+        // ========== 数据统计 ==========
+
+        function renderStats() {
+            const total = pendingData.length + historyData.length;
+            const approved = historyData.filter(a => a.decision === 'approved').length;
+            const rejected = historyData.filter(a => a.decision === 'rejected').length;
+            const pending = pendingData.length;
+            const approvalRate = total > 0 ? ((approved / (approved + rejected || 1)) * 100).toFixed(1) : 0;
+
+            document.getElementById('stats-total').textContent = total;
+            document.getElementById('stats-approval-rate').textContent = approvalRate + '%';
+            document.getElementById('stats-pending').textContent = pending;
+
+            // 图表
+            const totalProcessed = approved + rejected || 1;
+            document.getElementById('chart-approved').style.width = (approved / totalProcessed * 100) + '%';
+            document.getElementById('chart-rejected').style.width = (rejected / totalProcessed * 100) + '%';
+            document.getElementById('chart-pending-bar').style.width = (pending / total * 100 || 0) + '%';
+            document.getElementById('chart-approved-count').textContent = approved;
+            document.getElementById('chart-rejected-count').textContent = rejected;
+            document.getElementById('chart-pending-count').textContent = pending;
+
+            // 趋势图 - 最近7天
+            const trend = document.getElementById('trend-chart');
+            const days = 7;
+            const now = new Date();
+            let trendHTML = '';
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const count = historyData.filter(a => {
+                    if (!a.approved_at) return false;
+                    return a.approved_at.startsWith(dateStr);
+                }).length;
+                const maxCount = Math.max(...Array.from({length: days}, (_, idx) => {
+                    const dd = new Date(now);
+                    dd.setDate(dd.getDate() - idx);
+                    return historyData.filter(a => a.approved_at && a.approved_at.startsWith(dd.toISOString().split('T')[0])).length;
+                }), 1);
+                const height = Math.max(count / maxCount * 50, 4);
+                trendHTML += `<div style="flex:1;text-align:center">
+                    <div style="height:${height}px;background:#1890ff;border-radius:2px"></div>
+                    <div style="font-size:10px;color:#999;margin-top:4px">${d.getMonth()+1}/${d.getDate()}</div>
+                </div>`;
+            }
+            trend.innerHTML = trendHTML;
+        }
+
+        // ========== 配额管理 ==========
+
+        function renderQuota() {
+            const list = document.getElementById('quota-list');
+            if (!quotaData || quotaData.length === 0) {
+                list.innerHTML = '<div class="empty">暂无配额数据</div>';
+                return;
+            }
+            list.innerHTML = quotaData.map(q => {
+                const used = q.used || 0;
+                const limit = q.limit || 1000;
+                const pct = Math.min(used / limit * 100, 100);
+                const color = pct > 80 ? '#ff4d4f' : pct > 60 ? '#fa8c16' : '#52c41a';
+                return `<div class="quota-item">
+                    <span>${q.source || '未知'}</span>
+                    <div class="quota-bar"><div class="quota-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span>${used} / ${limit}</span>
+                    <button class="btn" onclick="editQuota('${q.source}')">调整</button>
+                </div>`;
+            }).join('');
+        }
+
+        function showQuotaModal(source) {
+            const q = quotaData.find(x => x.source === source);
+            document.getElementById('quota-source').value = source || '候选人管理系统';
+            document.getElementById('quota-limit').value = q ? q.limit : 1000;
+            document.getElementById('quota-modal').style.display = 'block';
+        }
+
+        function closeQuotaModal() {
+            document.getElementById('quota-modal').style.display = 'none';
+        }
+
+        function editQuota(source) {
+            showQuotaModal(source);
+        }
+
+        async function saveQuota() {
+            const source = document.getElementById('quota-source').value;
+            const limit = parseInt(document.getElementById('quota-limit').value) || 1000;
+            try {
+                const res = await fetch(`${API_BASE}/api/quota/${encodeURIComponent(source)}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({limit})
+                });
+                if (res.ok) {
+                    showToast('配额已更新');
+                    closeQuotaModal();
+                    loadData();
+                } else {
+                    showToast('更新失败');
+                }
+            } catch (e) {
+                showToast('更新失败: ' + e.message);
+            }
+        }
+
+        // ========== Webhook管理 ==========
+
+        function renderWebhooks() {
+            const list = document.getElementById('webhooks-list');
+            const empty = document.getElementById('webhooks-empty');
+            if (!webhooksData || webhooksData.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            list.innerHTML = webhooksData.map(w => `
+                <div class="webhook-item">
+                    <div style="display:flex;justify-content:space-between">
+                        <strong>${w.name || w.id}</strong>
+                        <button class="btn btn-danger" onclick="deleteWebhook('${w.id}')">删除</button>
+                    </div>
+                    <div style="color:#666;font-size:13px">URL: ${w.url || '-'}</div>
+                    <div style="color:#666;font-size:13px">事件: ${w.event || '-'}</div>
+                    <pre>${JSON.stringify(w, null, 2)}</pre>
+                </div>
+            `).join('');
+        }
+
+        function showWebhookModal() {
+            document.getElementById('webhook-name').value = '';
+            document.getElementById('webhook-url').value = '';
+            document.getElementById('webhook-event').value = 'approval.completed';
+            document.getElementById('webhook-modal').style.display = 'block';
+        }
+
+        function closeWebhookModal() {
+            document.getElementById('webhook-modal').style.display = 'none';
+        }
+
+        async function saveWebhook() {
+            const name = document.getElementById('webhook-name').value;
+            const url = document.getElementById('webhook-url').value;
+            const event = document.getElementById('webhook-event').value;
+            if (!name || !url) {
+                showToast('请填写名称和URL');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/webhooks`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, url, event})
+                });
+                if (res.ok) {
+                    showToast('Webhook 已添加');
+                    closeWebhookModal();
+                    loadData();
+                } else {
+                    showToast('添加失败');
+                }
+            } catch (e) {
+                showToast('添加失败: ' + e.message);
+            }
+        }
+
+        async function deleteWebhook(id) {
+            if (!confirm('确定要删除此 Webhook 吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/webhooks/${id}`, {method: 'DELETE'});
+                if (res.ok) {
+                    showToast('Webhook 已删除');
+                    loadData();
+                }
+            } catch (e) {
+                showToast('删除失败');
+            }
+        }
+
+        // ========== 用户管理 ==========
+
+        function renderUsers() {
+            const tbody = document.getElementById('users-tbody');
+            const empty = document.getElementById('users-empty');
+            if (!usersData || usersData.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            tbody.innerHTML = usersData.map(u => {
+                const roleMap = {
+                    'admin': '管理员',
+                    'approver': '审批员',
+                    'requester': '请求者',
+                    'viewer': '查看者'
+                };
+                const statusBadge = u.enabled
+                    ? '<span class="badge badge-approved">启用</span>'
+                    : '<span class="badge badge-rejected">禁用</span>';
+                const permissions = u.permissions && u.permissions.length > 0
+                    ? u.permissions.join(', ')
+                    : '-';
+                return `<tr>
+                    <td>${u.name || '-'}</td>
+                    <td>${roleMap[u.role] || u.role}</td>
+                    <td style="font-size:12px;color:#666">${permissions}</td>
+                    <td>${u.created_at ? new Date(u.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn" onclick="viewUser('${u.key_id}')">详情</button>
+                        <button class="btn" onclick="editUser('${u.key_id}')">编辑</button>
+                        <button class="btn btn-danger" onclick="toggleUser('${u.key_id}', ${!u.enabled})">${u.enabled ? '禁用' : '启用'}</button>
+                        <button class="btn btn-danger" onclick="deleteUser('${u.key_id}')">删除</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function showUserModal(user = null) {
+            const modal = document.getElementById('user-modal');
+            const title = document.getElementById('user-modal-title');
+            document.getElementById('user-key-id').value = user ? user.key_id : '';
+            document.getElementById('user-name').value = user ? user.name : '';
+            document.getElementById('user-role').value = user ? user.role : 'requester';
+            // Reset checkboxes
+            document.querySelectorAll('#permissions-list input[type="checkbox"]').forEach(cb => {
+                cb.checked = user && user.permissions && user.permissions.includes(cb.value);
+            });
+            title.textContent = user ? '编辑用户' : '创建用户';
+            modal.style.display = 'block';
+        }
+
+        function closeUserModal() {
+            document.getElementById('user-modal').style.display = 'none';
+        }
+
+        async function saveUser() {
+            const keyId = document.getElementById('user-key-id').value;
+            const name = document.getElementById('user-name').value;
+            const role = document.getElementById('user-role').value;
+            const permissions = Array.from(document.querySelectorAll('#permissions-list input[type="checkbox"]:checked')).map(cb => cb.value);
+
+            if (!name) {
+                showToast('请输入用户名');
+                return;
+            }
+
+            try {
+                let res;
+                if (keyId) {
+                    res = await fetch(`${API_BASE}/api/users/${keyId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name, role, permissions})
+                    });
+                    if (res.ok) {
+                        showToast('用户已更新');
+                        closeUserModal();
+                        loadData();
+                    } else {
+                        const err = await res.json();
+                        showToast(err.detail || '更新失败');
+                    }
+                } else {
+                    res = await fetch(`${API_BASE}/api/users`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name, role, permissions})
+                    });
+                    if (res.ok) {
+                        const result = await res.json();
+                        closeUserModal();
+                        showApikeyModal(result);
+                        loadData();
+                    } else {
+                        const err = await res.json();
+                        showToast(err.detail || '创建失败');
+                    }
+                }
+            } catch (e) {
+                showToast('操作失败: ' + e.message);
+            }
+        }
+
+        function editUser(keyId) {
+            const user = usersData.find(u => u.key_id === keyId);
+            if (user) showUserModal(user);
+        }
+
+        async function toggleUser(keyId, enabled) {
+            try {
+                const res = await fetch(`${API_BASE}/api/users/${keyId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled})
+                });
+                if (res.ok) {
+                    showToast(enabled ? '用户已启用' : '用户已禁用');
+                    loadData();
+                }
+            } catch (e) {
+                showToast('操作失败');
+            }
+        }
+
+        async function deleteUser(keyId) {
+            if (!confirm('确定要删除此用户吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/users/${keyId}`, {method: 'DELETE'});
+                if (res.ok) {
+                    showToast('用户已删除');
+                    loadData();
+                }
+            } catch (e) {
+                showToast('删除失败');
+            }
+        }
+
+        async function viewUser(keyId) {
+            const user = usersData.find(u => u.key_id === keyId);
+            if (!user) {
+                showToast('用户不存在');
+                return;
+            }
+            const roleMap = {
+                'admin': '管理员',
+                'approver': '审批员',
+                'requester': '请求者',
+                'viewer': '查看者'
+            };
+            const permissionsMap = {
+                'headhunter_submit_jd': '提交 JD',
+                'headhunter_submit_candidate': '提交候选人',
+                'headhunter_submit_match': '提交匹配',
+                'company_view_matches': '查看匹配列表',
+                'company_reply_interview': '回复面试',
+                'platform_approve': '审批通过',
+                'platform_reject': '审批拒绝',
+                'platform_manage_rules': '管理规则'
+            };
+            const permsText = user.permissions && user.permissions.length > 0
+                ? user.permissions.map(p => permissionsMap[p] || p).join(', ')
+                : '无';
+            const content = document.getElementById('user-detail-content');
+            content.innerHTML = `
+                <div style="margin:10px 0;"><strong>Key ID:</strong> ${user.key_id}</div>
+                <div style="margin:10px 0;"><strong>用户名:</strong> ${user.name}</div>
+                <div style="margin:10px 0;"><strong>角色:</strong> ${roleMap[user.role] || user.role}</div>
+                <div style="margin:10px 0;"><strong>权限:</strong> ${permsText}</div>
+                <div style="margin:10px 0;"><strong>状态:</strong> ${user.enabled ? '启用' : '禁用'}</div>
+                <div style="margin:10px 0;"><strong>创建时间:</strong> ${user.created_at ? new Date(user.created_at).toLocaleString('zh-CN') : '-'}</div>
+                <div style="margin:10px 0;"><strong>过期时间:</strong> ${user.expires_at ? new Date(user.expires_at).toLocaleString('zh-CN') : '永不过期'}</div>
+                <div style="margin:10px 0;"><strong>租户ID:</strong> ${user.tenant_id || 'default'}</div>
+                <div style="margin:20px 0;">
+                    <button class="btn btn-primary" onclick="loadUserAudit('${keyId}')">加载操作记录</button>
+                </div>
+                <div id="user-audit-content" style="max-height:300px;overflow-y:auto;"></div>
+            `;
+            document.getElementById('user-detail-modal').style.display = 'block';
+        }
+
+        async function loadUserAudit(keyId) {
+            const content = document.getElementById('user-audit-content');
+            content.innerHTML = '<div style="color:#999">加载中...</div>';
+            try {
+                const res = await fetch(`${API_BASE}/api/users/${keyId}/audit`);
+                if (res.ok) {
+                    const result = await res.json();
+                    if (!result.logs || result.logs.length === 0) {
+                        content.innerHTML = '<div style="color:#999">暂无操作记录</div>';
+                    } else {
+                        content.innerHTML = `<table style="width:100%;font-size:13px;">
+                            <thead><tr><th>时间</th><th>操作</th><th>对象类型</th><th>详情</th></tr></thead>
+                            <tbody>
+                            ${result.logs.map(log => `<tr>
+                                <td>${log.timestamp ? new Date(log.timestamp).toLocaleString('zh-CN') : '-'}</td>
+                                <td>${log.action}</td>
+                                <td>${log.object_type}</td>
+                                <td style="font-size:12px;color:#666">${JSON.stringify(log.after || log.before || {}).substring(0, 100)}</td>
+                            </tr>`).join('')}
+                            </tbody>
+                        </table>`;
+                    }
+                } else {
+                    content.innerHTML = '<div style="color:#ff4d4f">加载失败</div>';
+                }
+            } catch (e) {
+                content.innerHTML = '<div style="color:#ff4d4f">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function closeUserDetailModal() {
+            document.getElementById('user-detail-modal').style.display = 'none';
+        }
+
+        function showApikeyModal(result) {
+            document.getElementById('apikey-key-id').textContent = result.key_id;
+            document.getElementById('apikey-secret').textContent = result.secret;
+            document.getElementById('apikey-token').textContent = result.token;
+            document.getElementById('apikey-modal').style.display = 'block';
+        }
+
+        function closeApikeyModal() {
+            document.getElementById('apikey-modal').style.display = 'none';
+        }
+
+        // ========== 原有函数 ==========
+
+        function findRequestById(id) {
+            for (const p of pendingData) {
+                if (p.request.id === id) return p.request;
+            }
+            return null;
+        }
+
+        function getActionHTML(d) {
+            if (d.status === 'pending') {
+                return `<div>
+                    <button class="btn btn-success" onclick="approve('${d.id}')">通过</button>
+                    <button class="btn btn-danger" onclick="reject('${d.id}')">拒绝</button>
+                </div>`;
+            }
+            if (d.decision === 'approved') {
+                return `<span style="color:#52c41a">已通过</span>`;
+            }
+            if (d.decision === 'rejected') {
+                return `<span style="color:#ff4d4f">已拒绝</span>`;
+            }
+            return `<span style="color:#999">${d.status}</span>`;
+        }
+
+        function getStatusBadge(d) {
+            const status = d.status || d.decision;
+            const map = {
+                'pending': 'badge-pending',
+                'approved': 'badge-approved',
+                'rejected': 'badge-rejected',
+                'routing': 'badge-routing'
+            };
+            return `<span class="badge ${map[status] || ''}">${status || '-'}</span>`;
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '-';
+            return new Date(ts).toLocaleString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            currentPage = 1;
+            dateFrom = null;
+            dateTo = null;
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        async function approve(id) {
+            const comment = prompt('请输入审批备注（可选）:', '') || '';
+            try {
+                const res = await fetch(`${API_BASE}/api/approval/${id}/approve`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({decided_by: 'admin', comment})
+                });
+                if (res.ok) {
+                    showToast('审批通过');
+                    loadData();
+                } else {
+                    showToast('审批失败');
+                }
+            } catch (e) {
+                showToast('操作失败: ' + e.message);
+            }
+        }
+
+        async function reject(id) {
+            const comment = prompt('请输入拒绝原因:', '') || '';
+            try {
+                const res = await fetch(`${API_BASE}/api/approval/${id}/reject`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({decided_by: 'admin', comment})
+                });
+                if (res.ok) {
+                    showToast('已拒绝');
+                    loadData();
+                } else {
+                    showToast('操作失败');
+                }
+            } catch (e) {
+                showToast('操作失败: ' + e.message);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ========== 交易协作/匹配列表 ==========
+        function renderMatches() {
+            const tbody = document.getElementById('matches-tbody');
+            const empty = document.getElementById('matches-empty');
+            if (!matchesData || matchesData.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            tbody.innerHTML = matchesData.map(m => {
+                const score = m.match_score !== undefined ? (m.match_score * 100).toFixed(0) + '%' : '-';
+                const statusMap = {
+                    'pending': 'badge-pending',
+                    'approved': 'badge-approved',
+                    'rejected': 'badge-rejected',
+                    'routing': 'badge-routing'
+                };
+                const statusText = m.status || 'pending';
+                return `<tr>
+                    <td>${(m.match_id || '').substring(0, 12)}...</td>
+                    <td>${m.jd_title || '-'}<br><span style="color:#666;font-size:12px">${m.company || '-'}</span></td>
+                    <td>${m.candidate_name || '-'}</td>
+                    <td>${score}</td>
+                    <td><span class="badge ${statusMap[statusText] || ''}">${statusText}</span></td>
+                    <td>${m.created_at ? new Date(m.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>${m.source || '-'}</td>
+                    <td><button class="btn" onclick="viewMatchDetail('${m.match_id}')">详情</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function viewMatchDetail(matchId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/matches/${matchId}`);
+                if (!res.ok) {
+                    showToast('加载详情失败');
+                    return;
+                }
+                const data = await res.json();
+                const match = data.match || {};
+                const approvals = data.approvals || [];
+                const payload = match.payload || {};
+
+                // 状态映射
+                const statusMap = {
+                    'pending': '待审批',
+                    'approved': '已通过',
+                    'rejected': '已拒绝',
+                    'routing': '路由中'
+                };
+
+                let html = `<div style="margin:10px 0;"><strong>匹配ID:</strong> ${match.id || '-'}</div>`;
+                html += `<div style="margin:10px 0;"><strong>状态:</strong> ${statusMap[match.status] || match.status || '-'}</div>`;
+                html += `<div style="margin:10px 0;"><strong>匹配度:</strong> ${payload.match_score ? (payload.match_score * 100).toFixed(0) + '%' : '-'}</div>`;
+                html += `<div style="margin:10px 0;"><strong>提交时间:</strong> ${match.created_at ? new Date(match.created_at).toLocaleString('zh-CN') : '-'}</div>`;
+                html += `<div style="margin:10px 0;"><strong>来源:</strong> ${match.source || '-'}</div>`;
+
+                // JD信息
+                const jd = payload.jd || {};
+                html += `<h4 style="margin-top:20px;border-bottom:1px solid #f0f0f0;padding-bottom:8px;">JD信息</h4>`;
+                html += `<div style="margin:5px 0;"><strong>标题:</strong> ${jd.title || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>公司:</strong> ${jd.company || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>职位:</strong> ${jd.position || jd.level || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>地点:</strong> ${jd.location || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>薪资:</strong> ${jd.salary || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>要求:</strong> ${jd.requirements || '-'}</div>`;
+
+                // 候选人信息
+                const candidate = payload.candidate || {};
+                html += `<h4 style="margin-top:20px;border-bottom:1px solid #f0f0f0;padding-bottom:8px;">候选人信息</h4>`;
+                html += `<div style="margin:5px 0;"><strong>姓名:</strong> ${candidate.name || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>职位:</strong> ${candidate.current_position || candidate.position || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>公司:</strong> ${candidate.current_company || candidate.company || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>工作年限:</strong> ${candidate.experience || candidate.working_years || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>学历:</strong> ${candidate.education || '-'}</div>`;
+                html += `<div style="margin:5px 0;"><strong>联系方式:</strong> ${candidate.phone || '-'} / ${candidate.email || '-'}</div>`;
+
+                // 匹配亮点
+                if (payload.highlights && payload.highlights.length > 0) {
+                    html += `<h4 style="margin-top:20px;border-bottom:1px solid #f0f0f0;padding-bottom:8px;">匹配亮点</h4>`;
+                    html += `<ul style="margin:5px 0;padding-left:20px;">`;
+                    payload.highlights.forEach(h => {
+                        html += `<li style="margin:3px 0;">${h}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                // 审批历史
+                if (approvals.length > 0) {
+                    html += `<h4 style="margin-top:20px;border-bottom:1px solid #f0f0f0;padding-bottom:8px;">审批历史</h4>`;
+                    html += `<table style="width:100%;font-size:13px;border:1px solid #f0f0f0;">`;
+                    html += `<thead><tr><th>时间</th><th>审批人</th><th>决策</th><th>备注</th></tr></thead>`;
+                    html += `<tbody>`;
+                    approvals.forEach(a => {
+                        const decisionText = a.decision === 'approved' ? '通过' : a.decision === 'rejected' ? '拒绝' : a.decision || '-';
+                        html += `<tr>
+                            <td>${a.approved_at ? new Date(a.approved_at).toLocaleString('zh-CN') : '-'}</td>
+                            <td>${a.decided_by || '-'}</td>
+                            <td>${decisionText}</td>
+                            <td>${a.comment || '-'}</td>
+                        </tr>`;
+                    });
+                    html += `</tbody></table>`;
+                }
+
+                document.getElementById('match-detail-content').innerHTML = html;
+                document.getElementById('match-detail-modal').style.display = 'block';
+            } catch (e) {
+                showToast('加载详情失败: ' + e.message);
+            }
+        }
+
+        function closeMatchDetailModal() {
+            document.getElementById('match-detail-modal').style.display = 'none';
+        }
+
+        loadData();
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
