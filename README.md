@@ -1,5 +1,10 @@
 # 中介 API 平台
 
+[![Tests](https://github.com/qing3a/zhongjie-platform/actions/workflows/test.yml/badge.svg)](https://github.com/qing3a/zhongjie-platform/actions/workflows/test.yml)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/qing3a/zhongjie-platform/releases/tag/v0.2.0)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+
 一个带审批功能的通用中介平台，工作流通过 Skill 接入，所有请求经过规则引擎审批后路由。
 
 ## 快速开始

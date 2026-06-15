@@ -2,6 +2,8 @@
 M9 单元测试 - 数据迁移 + 身份桥接
 """
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,9 +15,9 @@ from zhongjie.identity.agent_card import AgentRole, AgentTier
 from zhongjie.identity.bridge import IdentityBridge
 from zhongjie.identity.registry import AgentRegistry
 
-# 跑迁移脚本
-import subprocess
+# 跑迁移脚本需要 utf-8 (脚本含 emoji, Windows GBK 默认会崩)
 SCRIPTS_DIR = ROOT / "scripts"
+_SUBPROCESS_ENV = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
 
 
 def test_bridge_ensure_agent_creates_new(tmp_path):
@@ -62,7 +64,7 @@ def test_migration_adds_owner_field_to_existing_data(tmp_path):
     result = subprocess.run(
         ["python", str(SCRIPTS_DIR / "migrate_add_owner.py"),
          "--data-dir", str(tmp_path), "--no-backup"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", env=_SUBPROCESS_ENV,
     )
     assert result.returncode == 0, f"迁移失败: {result.stderr}"
 
@@ -88,7 +90,7 @@ def test_migration_skips_records_already_with_owner(tmp_path):
     result = subprocess.run(
         ["python", str(SCRIPTS_DIR / "migrate_add_owner.py"),
          "--data-dir", str(tmp_path), "--no-backup"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", env=_SUBPROCESS_ENV,
     )
     assert result.returncode == 0
     after = json.loads((tmp_path / "jd.json").read_text(encoding="utf-8"))
@@ -103,7 +105,7 @@ def test_migration_dry_run_does_not_modify(tmp_path):
     result = subprocess.run(
         ["python", str(SCRIPTS_DIR / "migrate_add_owner.py"),
          "--data-dir", str(tmp_path), "--dry-run", "--no-backup"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", env=_SUBPROCESS_ENV,
     )
     assert result.returncode == 0
     # 文件未变
@@ -116,7 +118,7 @@ def test_migration_handles_missing_files(tmp_path):
     result = subprocess.run(
         ["python", str(SCRIPTS_DIR / "migrate_add_owner.py"),
          "--data-dir", str(tmp_path), "--no-backup"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", env=_SUBPROCESS_ENV,
     )
     assert result.returncode == 0
     assert "不存在" in result.stdout or "missing" in result.stdout.lower()
@@ -133,7 +135,7 @@ def test_migrated_data_loads_into_new_repo(tmp_path):
     subprocess.run(
         ["python", str(SCRIPTS_DIR / "migrate_add_owner.py"),
          "--data-dir", str(tmp_path), "--no-backup"],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", env=_SUBPROCESS_ENV,
     )
     # 新 Repository 加载
     from zhongjie.domain.factory import build_services

@@ -12,6 +12,15 @@ from datetime import datetime
 from pathlib import Path
 
 
+# Windows GBK 终端默认编码不支持 emoji, 这里强制 stdout 用 utf-8
+# reconfigure 是 Python 3.7+ 的稳定 API
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
+
+
 LEGACY_OWNER = "legacy"  # 老数据统一标记
 
 
