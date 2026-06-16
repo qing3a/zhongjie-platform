@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from .routers import agents, audit, a2a, billing, candidates, delegations, tasks
+from .routers import agents, ai, audit, a2a, billing, candidates, delegations, tasks
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +33,17 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="中介 API 平台 (zhongjie) - Agent 协作网络",
         version="1.0.0",
-        description=(
-            "新版本 FastAPI 应用 - 基于 P0-P5 重构的六层架构\n"
-            "- /api/agents/*   Agent 管理 + A2A Card\n"
-            "- /api/tasks/*    异步任务\n"
-            "- /api/delegations/*  委托协作\n"
-            "- /api/billing/*  账单与结算\n"
-            "- /api/audit/*    治理决策审计\n"
-            "- /a2a            A2A JSON-RPC 入口\n"
-            "- /.well-known/agent-card.json  平台 Agent Card"
-        ),
+    description=(
+        "新版本 FastAPI 应用 - 基于 P0-P5 重构的六层架构 + v0.3 AI 协作扩展\n"
+        "- /api/agents/*   Agent 管理 + A2A Card\n"
+        "- /api/tasks/*    异步任务\n"
+        "- /api/delegations/*  委托协作\n"
+        "- /api/billing/*  账单与结算\n"
+        "- /api/audit/*    治理决策审计\n"
+        "- /api/llm/*      v0.3: AI 协作 (文本润色 / 提取 / 总结)\n"
+        "- /a2a            A2A JSON-RPC 入口\n"
+        "- /.well-known/agent-card.json  平台 Agent Card"
+    ),
         lifespan=lifespan,
     )
     # 注册路由
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(billing.router)
     app.include_router(audit.router)
     app.include_router(a2a.router)
+    app.include_router(ai.router)  # v0.3: AI 协作 (文本润色等)
 
     @app.get("/health")
     def health():

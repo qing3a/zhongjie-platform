@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0a1] - 2026-06-15
+
+### 重定位 (PIVOT)
+- **产品定位变更**: 旧"猎头中介 / agent 协作网络"是 v0.2 工程假设, 不是终局目标
+- v0.3 起重定位为 **"AI 深度参与的本地生活服务 + 招聘协作平台, 以 API 为核心"**
+- 5 类用户: 求职者 / BOSS·HR / 服务提供者 / 服务需求方 / 管理员
+- 10 个核心 API 模块 (身份/发布/匹配/IM/风控/交易/评价/洞察/任务/集成)
+- 详见 `docs/v0.3-architecture.md`
+
+### 新增
+- `src/zhongjie/ai/` - LLM 抽象层 (Provider-agnostic)
+  - `llm.py`: LLMProvider 基类 + StubProvider (默认) + OpenAIProvider + AnthropicProvider
+  - `models.py`: EnhanceRequest / EnhanceResult
+  - `prompts.py`: 第一个模板 (中文岗位润色)
+  - 第一个能力: `enhance_text()` (文本润色)
+- `src/zhongjie/api/routers/ai.py` - `POST /api/llm/enhance` 端点
+- 20 个新测试 (`tests/test_p6_m28_llm.py`) — 全过
+
+### 向后兼容
+- v0.2 全部 API 端点保留
+- 367 个测试全过 (无回归)
+- 6 层架构 / A2A 协议 / 委托 / 审计 等老能力可继续用
+
 ## [0.2.0] - 2026-06-15
 
 首个正式发布版本。从 P0-P5 重构完成, 老代码 (api_server.py / p0_core.py / p1_p2.py / 根目录 auth.py) 全部清除。

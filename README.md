@@ -1,11 +1,25 @@
-# 中介 API 平台
+# zhongjie — AI 协作平台
 
 [![Tests](https://github.com/qing3a/zhongjie-platform/actions/workflows/test.yml/badge.svg)](https://github.com/qing3a/zhongjie-platform/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/qing3a/zhongjie-platform/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-0.3.0--alpha-orange)](https://github.com/qing3a/zhongjie-platform/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
-一个带审批功能的通用中介平台，工作流通过 Skill 接入，所有请求经过规则引擎审批后路由。
+> **🚧 v0.3 重定位进行中 (2026-06-15)**
+>
+> 旧定位"猎头中介 / agent 协作网络"是 v0.2 阶段的工程假设，**不是终局产品目标**。
+> v0.3 起重定位为 **"AI 深度参与的本地生活服务 + 招聘协作平台，以 API 为核心"**——
+> 详见 [`docs/v0.3-architecture.md`](docs/v0.3-architecture.md)。
+> v0.2 全部 API 端点**保留向后兼容**，可继续使用。
+
+**AI 深度参与的本地生活服务 + 招聘协作平台，以 API 为核心。**
+
+5 类用户：求职者 / BOSS·HR / 服务提供者 / 服务需求方 / 管理员。
+10 个核心 API 模块：身份、信息发布、智能匹配、AI 即时通讯、审核风控、交易流程、评价信誉、数据洞察、协作任务、开放集成。
+
+**所有能力封装为 API**——你可以构建任何形态的应用（移动端 / Web / 小程序 / 内部系统），甚至直接将它作为中台嵌入其他业务。
+
+## 快速开始
 
 ## 快速开始
 

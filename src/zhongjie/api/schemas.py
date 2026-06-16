@@ -137,3 +137,18 @@ class AuditEntryResponse(BaseModel):
     hash: str
     prev_hash: str
     note: str = ""
+
+
+# ============ AI / LLM (v0.3 新增) ============
+class EnhanceRequestSchema(BaseModel):
+    text: str = Field(..., min_length=1, max_length=10_000)
+    category: str | None = None
+    temperature: float = Field(default=0.3, ge=0.0, le=1.0)
+
+
+class EnhanceResponseSchema(BaseModel):
+    request_id: str
+    enhanced_text: str
+    tags: list[str] = Field(default_factory=list)
+    provider: str
+    model: str
