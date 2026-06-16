@@ -152,3 +152,42 @@ class EnhanceResponseSchema(BaseModel):
     tags: list[str] = Field(default_factory=list)
     provider: str
     model: str
+
+
+class ExtractRequestSchema(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20_000)
+    schema_hint: str | None = None
+    mode: str = Field(default="auto")
+
+
+class ExtractResponseSchema(BaseModel):
+    request_id: str
+    source: str
+    provider: str
+    model: str
+    skills: list[str] = Field(default_factory=list)
+    experience_years: int | None = None
+    education: str | None = None
+    industry: list[str] = Field(default_factory=list)
+    location: list[str] = Field(default_factory=list)
+    salary_text: str | None = None
+    extras: dict = Field(default_factory=dict)
+
+
+class ClassifyRequestSchema(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20_000)
+    context: str | None = None
+    mode: str = Field(default="auto")
+
+
+class ClassifyResponseSchema(BaseModel):
+    request_id: str
+    text_preview: str
+    risk_score: float
+    primary_category: str
+    categories: list[str]
+    action: str
+    reason: str
+    provider: str
+    model: str
+    source: str
